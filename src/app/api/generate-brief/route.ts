@@ -1,0 +1,183 @@
+import { NextRequest, NextResponse } from "next/server";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+export interface TimelineEvent {
+  date: string;
+  title: string;
+  details: string;
+  keyParties: string;
+  evidenceRef?: string;
+}
+
+export interface MissingFact {
+  category: string;
+  question: string;
+  rationale: string;
+  importance: "High" | "Medium" | "Low";
+}
+
+export interface NextStep {
+  stepNumber: number;
+  action: string;
+  category: string;
+  urgency: "Immediate (Critical)" | "High Priority" | "Standard Prep";
+  rationale: string;
+}
+
+export interface LegalBriefData {
+  caseSummary: string;
+  legalCategory: string;
+  timeline: TimelineEvent[];
+  missingFacts: MissingFact[];
+  nextSteps: NextStep[];
+  legalRiskFactors: string[];
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: "GEMINI_API_KEY is not configured on the server environment." },
+        { status: 500 }
+      );
+    }
+
+    const body = await req.json();
+    const { narrative, caseCategory, jurisdiction } = body;
+
+    if (!narrative || typeof narrative !== "string" || narrative.trim().length === 0) {
+      return NextResponse.json(
+        { error: "Narrative text is required to generate a legal brief." },
+        { status: 400 }
+      );
+    }
+
+    const genAI = new GoogleGenerativeAI(apiKey);
+
+    const systemPrompt = `
+You are an expert Advocate-on-Record (AOR) Legal Briefing Assistant.
+Your job is to analyze unstructured, messy client narratives and transform them into a clean, structured pre-consultation brief for a legal counsel.
+
+Analyze the user's narrative and return a strictly valid JSON object with the following schema:
+
+{
+  "caseSummary": "A clear 2-3 sentence overview of the core legal dispute or issue.",
+  "legalCategory": "Specific legal domain (e.g. Real Estate & Property, Breach of Contract, Employment & Labor, Consumer Protection, Corporate Dispute, Civil Litigation, Intellectual Property)",
+  "timeline": [
+    {
+      "date": "Date, month, year or relative timeframe (e.g., '14 Feb 2023' or 'Late August 2023')",
+      "title": "Short title of the incident/event",
+      "details": "Description of what occurred",
+      "keyParties": "Parties involved in this event",
+      "evidenceRef": "Mentioned or implied evidence (e.g., Bank Receipt, Email, WhatsApp, Contract Clause)"
+    }
+  ],
+  "missingFacts": [
+    {
+      "category": "Category of missing info (e.g., Contractual Proof, Notice Period, Financial Loss, Jurisdictional Fact)",
+      "question": "Clear question the advocate needs answered",
+      "rationale": "Why this missing fact is crucial for evaluating legal remedies or cause of action",
+      "importance": "High" | "Medium" | "Low"
+    }
+  ],
+  "nextSteps": [
+    {
+      "stepNumber": 1,
+      "action": "Actionable task for the client before meeting counsel",
+      "category": "e.g., Document Gathering, Communication Audit, Limitation Check",
+      "urgency": "Immediate (Critical)" | "High Priority" | "Standard Prep",
+      "rationale": "Why this step should be taken prior to legal consultation"
+    }
+  ],
+  "legalRiskFactors": [
+    "Key legal risks or procedural hurdles identified (e.g., Potential limitation period expiry, Lack of written agreement, Multi-jurisdiction issues)"
+  ]
+}
+
+Instructions:
+- Order the 'timeline' events chronologically from earliest to most recent.
+- Ensure 'missingFacts' identifies gaps that are vital for an Advocate to evaluate the case strength.
+- Ensure 'nextSteps' gives actionable guidance to prepare evidence before formal consultation.
+- Return ONLY the JSON object.
+
+Category Hint from User: ${caseCategory || "Auto-detect"}
+Jurisdiction Hint from User: ${jurisdiction || "General"}
+`;
+
+    const userPrompt = `Client Narrative:\n"""\n${narrative.trim()}\n"""`;
+
+    // Candidate model names to try in order
+    const candidateModels = [
+      "gemini-2.5-flash",
+      "gemini-2.0-flash",
+      "gemini-1.5-flash-latest",
+      "gemini-1.5-flash",
+      "gemini-1.5-pro",
+      "gemini-pro"
+    ];
+
+    let lastError: any = null;
+    let responseText: string | null = null;
+
+    for (const modelName of candidateModels) {
+      try {
+        // First try with JSON response mode
+        try {
+          const model = genAI.getGenerativeModel({
+            model: modelName,
+            generationConfig: { responseMimeType: "application/json" },
+          });
+          const result = await model.generateContent([systemPrompt, userPrompt]);
+          responseText = result.response.text();
+          if (responseText) break;
+        } catch {
+          // Fallback: try model without responseMimeType constraint
+          const model = genAI.getGenerativeModel({ model: modelName });
+          const result = await model.generateContent([systemPrompt, userPrompt]);
+          responseText = result.response.text();
+          if (responseText) break;
+        }
+      } catch (err: any) {
+        console.warn(`Model ${modelName} failed:`, err?.message || err);
+        lastError = err;
+      }
+    }
+
+    if (!responseText) {
+      throw lastError || new Error("Failed to get response from any Gemini model.");
+    }
+
+    // Clean JSON response if wrapped in markdown code blocks
+    let cleanJson = responseText.trim();
+    if (cleanJson.startsWith("```json")) {
+      cleanJson = cleanJson.replace(/^```json\s*/, "").replace(/\s*```$/, "");
+    } else if (cleanJson.startsWith("```")) {
+      cleanJson = cleanJson.replace(/^```\s*/, "").replace(/\s*```$/, "");
+    }
+
+    let parsedData: LegalBriefData;
+    try {
+      parsedData = JSON.parse(cleanJson);
+    } catch (parseErr) {
+      console.error("JSON parsing error from Gemini output:", parseErr, cleanJson);
+      return NextResponse.json(
+        {
+          error: "Failed to parse structured legal output from AI response.",
+          rawResponse: responseText,
+        },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({ success: true, brief: parsedData });
+  } catch (err: any) {
+    console.error("Error in generate-brief API:", err);
+    return NextResponse.json(
+      {
+        error: err.message || "An unexpected error occurred while generating the legal brief.",
+      },
+      { status: 500 }
+    );
+  }
+}
