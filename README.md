@@ -37,6 +37,21 @@ Citizens seeking legal help rarely know how to organize facts into legal cause o
 
 ---
 
+## ☁️ 2.1 Google Cloud & Gen AI Services Utilized
+
+1. **Google Gemini Generative AI SDK (`@google/generative-ai`)**:
+   - Primary AI inference engine running `gemini-2.5-flash`, `gemini-2.0-flash`, and `gemini-1.5-flash`.
+   - Used in `/api/generate-brief` to extract Timeline Events, Missing Facts, Next Steps, and Legal Risk Factors.
+2. **Google Gemini Text Embeddings (`text-embedding-004`)**:
+   - Generates 768-dimensional vector embeddings of the legal narrative.
+   - Calculates semantic complexity metrics and vector dimensions displayed in the analysis metadata panel.
+3. **Google Enterprise AI Safety Settings Guardrails (`HarmCategory` & `HarmBlockThreshold`)**:
+   - Enforces strict safety thresholds for Harassment, Hate Speech, and Dangerous Content on all API queries.
+4. **Google Fonts (`next/font/google`)**:
+   - Server-side font optimization delivering high-performance typography (`Inter`, `Cinzel`, `JetBrains_Mono`).
+5. **Google Web Speech API Audio Engine (`window.speechSynthesis`)**:
+   - Powering high-accessibility audio playback (Read Aloud) with Play, Pause, Resume, Stop, and pitch/speed controls.
+
 ## ⚙️ 3. How the Solution Works
 
 1. **User Input Layer**: Large interactive text area supporting raw text typing or 1-click loading of pre-loaded real-world legal scenarios (Real Estate Builder Delay, B2B Software Breach, Employment Termination).
