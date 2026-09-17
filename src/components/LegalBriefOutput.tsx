@@ -1,23 +1,19 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { LegalBriefData } from "@/app/api/generate-brief/route";
 import {
   Clock,
   HelpCircle,
   CheckCircle2,
   AlertOctagon,
-  FileSpreadsheet,
   Copy,
   Check,
   Download,
-  Printer,
-  ShieldCheck,
   Tag,
   UserCheck,
   Calendar,
   Layers,
-  ArrowRight,
 } from "lucide-react";
 import { DisclaimerBanner } from "./DisclaimerBanner";
 
@@ -27,12 +23,12 @@ interface LegalBriefOutputProps {
 
 export const LegalBriefOutput: React.FC<LegalBriefOutputProps> = ({ brief }) => {
   const [activeTab, setActiveTab] = useState<
-    "all" | "timeline" | "missing" | "nextsteps" | "lawyer"
+    "all" | "timeline" | "missing" | "nextsteps"
   >("all");
   const [copied, setCopied] = useState(false);
 
-  // Generate plain text version for copy/speech
-  const generateFullTextForSpeech = () => {
+  // Generate plain text version for copy/speech with memoization for Efficiency
+  const speechText = useMemo(() => {
     let text = `Executive Brief Summary: ${brief.caseSummary}. Legal Category: ${brief.legalCategory}. `;
 
     text += "Chronological Timeline: ";
@@ -51,7 +47,7 @@ export const LegalBriefOutput: React.FC<LegalBriefOutputProps> = ({ brief }) => 
     });
 
     return text;
-  };
+  }, [brief]);
 
   const handleCopy = () => {
     const markdown = `# AOR LEGAL BRIEFING SUMMARY
@@ -91,7 +87,7 @@ ${brief.nextSteps
   .join("\n\n")}
 
 ---
-DISCLAIMER: This document provides informational structuring only and does not constitute legal advice.
+DISCLAIMER: This tool provides informational structuring only and does not constitute legal advice.
 `;
 
     navigator.clipboard.writeText(markdown);
@@ -101,8 +97,7 @@ DISCLAIMER: This document provides informational structuring only and does not c
 
   const handleDownload = () => {
     const element = document.createElement("a");
-    const markdown = `# AOR LEGAL BRIEFING SUMMARY\nCategory: ${brief.legalCategory}\n\nSummary:\n${brief.caseSummary}\n\n...`;
-    const file = new Blob([generateFullTextForSpeech()], { type: "text/plain" });
+    const file = new Blob([speechText], { type: "text/plain" });
     element.href = URL.createObjectURL(file);
     element.download = `AOR_Legal_Brief_${brief.legalCategory.replace(/\s+/g, "_")}.txt`;
     document.body.appendChild(element);
@@ -113,37 +108,38 @@ DISCLAIMER: This document provides informational structuring only and does not c
   const getImportanceBadge = (imp: "High" | "Medium" | "Low") => {
     switch (imp) {
       case "High":
-        return "bg-red-500/10 text-red-400 border-red-500/30";
+        return "bg-red-500/20 text-red-300 border-red-500/40";
       case "Medium":
-        return "bg-amber-500/10 text-amber-400 border-amber-500/30";
+        return "bg-amber-500/20 text-amber-300 border-amber-500/40";
       default:
-        return "bg-blue-500/10 text-blue-400 border-blue-500/30";
+        return "bg-blue-500/20 text-blue-300 border-blue-500/40";
     }
   };
 
   const getUrgencyBadge = (urg: string) => {
     if (urg.includes("Immediate")) {
-      return "bg-red-500/15 text-red-300 border-red-500/40";
+      return "bg-red-500/20 text-red-300 border-red-500/50";
     }
     if (urg.includes("High")) {
-      return "bg-amber-500/15 text-amber-300 border-amber-500/40";
+      return "bg-amber-500/20 text-amber-300 border-amber-500/50";
     }
-    return "bg-slate-800 text-slate-300 border-slate-700";
+    return "bg-slate-800 text-slate-200 border-slate-700";
   };
 
   return (
     <div className="space-y-6">
       {/* Executive Summary Card */}
-      <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
-
+      <section
+        aria-label="Executive Case Brief Section"
+        className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden"
+      >
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4 mb-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
+              <span className="text-xs font-bold text-amber-300 bg-amber-500/20 px-2.5 py-0.5 rounded-full border border-amber-500/30">
                 {brief.legalCategory}
               </span>
-              <span className="text-xs text-slate-400">• Structured Legal Output</span>
+              <span className="text-xs text-slate-300">• Structured Legal Output</span>
             </div>
             <h2 className="text-xl font-bold text-white">Executive Case Brief</h2>
           </div>
@@ -151,49 +147,53 @@ DISCLAIMER: This document provides informational structuring only and does not c
           {/* Actions: Copy & Download */}
           <div className="flex items-center gap-2">
             <button
+              type="button"
               onClick={handleCopy}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium border border-slate-700 transition-all"
+              aria-label="Copy legal brief to clipboard in markdown format"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-100 rounded-lg text-xs font-bold border border-slate-700 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
             >
               {copied ? (
                 <>
-                  <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="text-emerald-400 font-semibold">Copied!</span>
+                  <Check className="w-3.5 h-3.5 text-emerald-400" aria-hidden="true" />
+                  <span className="text-emerald-400 font-bold">Copied!</span>
                 </>
               ) : (
                 <>
-                  <Copy className="w-3.5 h-3.5" />
+                  <Copy className="w-3.5 h-3.5" aria-hidden="true" />
                   <span>Copy Brief</span>
                 </>
               )}
             </button>
 
             <button
+              type="button"
               onClick={handleDownload}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-medium border border-slate-700 transition-all"
+              aria-label="Export brief as text file"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-100 rounded-lg text-xs font-bold border border-slate-700 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
             >
-              <Download className="w-3.5 h-3.5" />
+              <Download className="w-3.5 h-3.5" aria-hidden="true" />
               <span>Export Text</span>
             </button>
           </div>
         </div>
 
         {/* Narrative Summary */}
-        <p className="text-slate-300 text-sm leading-relaxed mb-4">
+        <p className="text-slate-200 text-sm leading-relaxed mb-4 font-normal">
           {brief.caseSummary}
         </p>
 
         {/* Risk Factors */}
         {brief.legalRiskFactors && brief.legalRiskFactors.length > 0 && (
-          <div className="bg-amber-950/20 border border-amber-500/30 rounded-xl p-3">
-            <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5 mb-2">
-              <AlertOctagon className="w-4 h-4" />
+          <div className="bg-amber-950/30 border border-amber-500/40 rounded-xl p-3">
+            <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5 mb-2">
+              <AlertOctagon className="w-4 h-4 text-amber-400" aria-hidden="true" />
               Legal Risk & Procedural Factors Identified:
             </span>
             <div className="flex flex-wrap gap-2">
               {brief.legalRiskFactors.map((risk, i) => (
                 <span
                   key={i}
-                  className="text-xs bg-amber-500/10 text-amber-200 border border-amber-500/20 px-2.5 py-1 rounded-lg"
+                  className="text-xs bg-amber-500/20 text-amber-200 font-semibold border border-amber-500/30 px-2.5 py-1 rounded-lg"
                 >
                   ⚠️ {risk}
                 </span>
@@ -201,229 +201,257 @@ DISCLAIMER: This document provides informational structuring only and does not c
             </div>
           </div>
         )}
-      </div>
+      </section>
 
-      {/* Tabs Switcher */}
-      <div className="flex items-center gap-2 border-b border-slate-800 overflow-x-auto pb-2">
+      {/* ARIA Accessible Tabs Switcher */}
+      <div
+        role="tablist"
+        aria-label="Brief Content Views"
+        className="flex items-center gap-2 border-b border-slate-800 overflow-x-auto pb-2"
+      >
         <button
+          role="tab"
+          id="tab-all"
+          aria-selected={activeTab === "all"}
+          aria-controls="panel-brief-content"
           onClick={() => setActiveTab("all")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
+          className={`px-4 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
             activeTab === "all"
-              ? "bg-amber-500 text-slate-950 shadow-md"
-              : "bg-slate-900 text-slate-400 hover:text-slate-200"
+              ? "bg-amber-400 text-slate-950 shadow-md"
+              : "bg-slate-900 text-slate-300 hover:text-slate-100"
           }`}
         >
-          <Layers className="w-3.5 h-3.5" />
+          <Layers className="w-3.5 h-3.5" aria-hidden="true" />
           <span>Full Overview</span>
         </button>
 
         <button
+          role="tab"
+          id="tab-timeline"
+          aria-selected={activeTab === "timeline"}
+          aria-controls="panel-brief-content"
           onClick={() => setActiveTab("timeline")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
+          className={`px-4 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
             activeTab === "timeline"
-              ? "bg-amber-500 text-slate-950 shadow-md"
-              : "bg-slate-900 text-slate-400 hover:text-slate-200"
+              ? "bg-amber-400 text-slate-950 shadow-md"
+              : "bg-slate-900 text-slate-300 hover:text-slate-100"
           }`}
         >
-          <Clock className="w-3.5 h-3.5" />
+          <Clock className="w-3.5 h-3.5" aria-hidden="true" />
           <span>Chronological Timeline ({brief.timeline.length})</span>
         </button>
 
         <button
+          role="tab"
+          id="tab-missing"
+          aria-selected={activeTab === "missing"}
+          aria-controls="panel-brief-content"
           onClick={() => setActiveTab("missing")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
+          className={`px-4 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
             activeTab === "missing"
-              ? "bg-amber-500 text-slate-950 shadow-md"
-              : "bg-slate-900 text-slate-400 hover:text-slate-200"
+              ? "bg-amber-400 text-slate-950 shadow-md"
+              : "bg-slate-900 text-slate-300 hover:text-slate-100"
           }`}
         >
-          <HelpCircle className="w-3.5 h-3.5" />
+          <HelpCircle className="w-3.5 h-3.5" aria-hidden="true" />
           <span>Missing Facts ({brief.missingFacts.length})</span>
         </button>
 
         <button
+          role="tab"
+          id="tab-nextsteps"
+          aria-selected={activeTab === "nextsteps"}
+          aria-controls="panel-brief-content"
           onClick={() => setActiveTab("nextsteps")}
-          className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all whitespace-nowrap ${
+          className={`px-4 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 ${
             activeTab === "nextsteps"
-              ? "bg-amber-500 text-slate-950 shadow-md"
-              : "bg-slate-900 text-slate-400 hover:text-slate-200"
+              ? "bg-amber-400 text-slate-950 shadow-md"
+              : "bg-slate-900 text-slate-300 hover:text-slate-100"
           }`}
         >
-          <CheckCircle2 className="w-3.5 h-3.5" />
+          <CheckCircle2 className="w-3.5 h-3.5" aria-hidden="true" />
           <span>Next Steps ({brief.nextSteps.length})</span>
         </button>
       </div>
 
-      {/* SECTION 1: CHRONOLOGICAL TIMELINE */}
-      {(activeTab === "all" || activeTab === "timeline") && (
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl">
-          <div className="flex items-center gap-2 mb-6">
-            <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center">
-              <Clock className="w-4 h-4 text-indigo-400" />
+      <div id="panel-brief-content" role="tabpanel" className="space-y-6">
+        {/* SECTION 1: CHRONOLOGICAL TIMELINE */}
+        {(activeTab === "all" || activeTab === "timeline") && (
+          <section
+            aria-label="Chronological Timeline Section"
+            className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl"
+          >
+            <div className="flex items-center gap-2 mb-6">
+              <div className="w-8 h-8 rounded-lg bg-indigo-500/20 flex items-center justify-center">
+                <Clock className="w-4 h-4 text-indigo-400" aria-hidden="true" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold text-white">
+                  1. Chronological Timeline of Events
+                </h3>
+                <p className="text-xs text-slate-300">
+                  Key incidents mapped sequentially for advocate review
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-base font-bold text-white">
-                1. Chronological Timeline of Events
-              </h3>
-              <p className="text-xs text-slate-400">
-                Key incidents mapped sequentially for advocate review
-              </p>
-            </div>
-          </div>
 
-          {/* Vertical Timeline list */}
-          <div className="relative pl-6 sm:pl-8 border-l-2 border-indigo-500/30 space-y-8">
-            {brief.timeline.map((event, index) => (
-              <div key={index} className="relative group">
-                {/* Timeline Dot Marker */}
-                <div className="absolute -left-[31px] sm:-left-[39px] top-1.5 w-4 h-4 rounded-full bg-slate-950 border-2 border-indigo-500 group-hover:border-amber-400 group-hover:scale-110 transition-all flex items-center justify-center">
-                  <div className="w-1.5 h-1.5 rounded-full bg-indigo-400 group-hover:bg-amber-400" />
-                </div>
-
-                {/* Card Container */}
-                <div className="bg-slate-950/70 border border-slate-800 hover:border-indigo-500/40 rounded-xl p-4 transition-all shadow-md">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-2">
-                    <span className="text-xs font-bold text-amber-400 flex items-center gap-1.5 bg-amber-500/10 px-2.5 py-0.5 rounded-md border border-amber-500/20 w-fit">
-                      <Calendar className="w-3 h-3" />
-                      {event.date}
-                    </span>
-                    <span className="text-xs text-slate-400 flex items-center gap-1">
-                      <UserCheck className="w-3 h-3 text-indigo-400" />
-                      Parties: {event.keyParties}
-                    </span>
+            <div className="relative pl-6 sm:pl-8 border-l-2 border-indigo-500/40 space-y-8">
+              {brief.timeline.map((event, index) => (
+                <article key={index} className="relative group">
+                  <div className="absolute -left-[31px] sm:-left-[39px] top-1.5 w-4 h-4 rounded-full bg-slate-950 border-2 border-indigo-500 flex items-center justify-center">
+                    <div className="w-1.5 h-1.5 rounded-full bg-indigo-400" />
                   </div>
 
-                  <h4 className="text-sm font-bold text-slate-100 mb-1.5">
-                    {event.title}
-                  </h4>
-
-                  <p className="text-xs text-slate-300 leading-relaxed mb-2">
-                    {event.details}
-                  </p>
-
-                  {event.evidenceRef && (
-                    <div className="inline-flex items-center gap-1.5 text-[11px] bg-indigo-950/50 text-indigo-300 border border-indigo-500/30 px-2.5 py-1 rounded-md">
-                      <Tag className="w-3 h-3" />
-                      <span>Evidence / Proof: {event.evidenceRef}</span>
+                  <div className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 shadow-md">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1 mb-2">
+                      <span className="text-xs font-bold text-amber-300 flex items-center gap-1.5 bg-amber-500/20 px-2.5 py-0.5 rounded-md border border-amber-500/30 w-fit">
+                        <Calendar className="w-3 h-3" aria-hidden="true" />
+                        {event.date}
+                      </span>
+                      <span className="text-xs text-slate-300 flex items-center gap-1 font-medium">
+                        <UserCheck className="w-3 h-3 text-indigo-400" aria-hidden="true" />
+                        Parties: {event.keyParties}
+                      </span>
                     </div>
-                  )}
-                </div>
+
+                    <h4 className="text-sm font-bold text-slate-100 mb-1.5">
+                      {event.title}
+                    </h4>
+
+                    <p className="text-xs text-slate-200 leading-relaxed mb-2 font-normal">
+                      {event.details}
+                    </p>
+
+                    {event.evidenceRef && (
+                      <div className="inline-flex items-center gap-1.5 text-[11px] bg-indigo-950/70 text-indigo-200 border border-indigo-500/40 px-2.5 py-1 rounded-md font-semibold">
+                        <Tag className="w-3 h-3" aria-hidden="true" />
+                        <span>Evidence / Proof: {event.evidenceRef}</span>
+                      </div>
+                    )}
+                  </div>
+                </article>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* SECTION 2: MISSING CRITICAL FACTS */}
+        {(activeTab === "all" || activeTab === "missing") && (
+          <section
+            aria-label="Missing Critical Facts Section"
+            className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl"
+          >
+            <div className="flex items-center gap-2 mb-6">
+              <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                <HelpCircle className="w-4 h-4 text-amber-400" aria-hidden="true" />
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* SECTION 2: MISSING CRITICAL FACTS */}
-      {(activeTab === "all" || activeTab === "missing") && (
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl">
-          <div className="flex items-center gap-2 mb-6">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center">
-              <HelpCircle className="w-4 h-4 text-amber-400" />
+              <div>
+                <h3 className="text-base font-bold text-white">
+                  2. Missing Critical Facts & Information Gaps
+                </h3>
+                <p className="text-xs text-slate-300">
+                  Crucial queries the advocate will evaluate before taking action
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-base font-bold text-white">
-                2. Missing Critical Facts & Information Gaps
-              </h3>
-              <p className="text-xs text-slate-400">
-                Crucial queries the advocate will evaluate before taking action
-              </p>
-            </div>
-          </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {brief.missingFacts.map((fact, index) => (
-              <div
-                key={index}
-                className="bg-slate-950/70 border border-slate-800 hover:border-amber-500/40 rounded-xl p-4 flex flex-col justify-between transition-all"
-              >
-                <div>
-                  <div className="flex items-center justify-between gap-2 mb-2">
-                    <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-400 bg-slate-900 px-2 py-0.5 rounded">
-                      {fact.category}
-                    </span>
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded border ${getImportanceBadge(
-                        fact.importance
-                      )}`}
-                    >
-                      {fact.importance} Priority Gap
-                    </span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {brief.missingFacts.map((fact, index) => (
+                <div
+                  key={index}
+                  className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 flex flex-col justify-between"
+                >
+                  <div>
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <span className="text-[10px] uppercase tracking-wider font-bold text-slate-300 bg-slate-900 px-2 py-0.5 rounded border border-slate-700">
+                        {fact.category}
+                      </span>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded border ${getImportanceBadge(
+                          fact.importance
+                        )}`}
+                      >
+                        {fact.importance} Priority Gap
+                      </span>
+                    </div>
+
+                    <h4 className="text-sm font-bold text-amber-300 mb-2 flex items-start gap-2">
+                      <span className="text-slate-400 shrink-0">Q{index + 1}.</span>
+                      <span>{fact.question}</span>
+                    </h4>
                   </div>
 
-                  <h4 className="text-sm font-bold text-amber-300 mb-2 flex items-start gap-2">
-                    <span className="text-slate-500 shrink-0">Q{index + 1}.</span>
-                    <span>{fact.question}</span>
-                  </h4>
+                  <div className="mt-3 pt-3 border-t border-slate-800 text-xs text-slate-300 bg-slate-900/60 p-2.5 rounded-lg">
+                    <strong className="text-slate-200 block mb-0.5 font-bold">
+                      Why Legal Counsel Needs This:
+                    </strong>
+                    <p className="font-normal text-slate-300">{fact.rationale}</p>
+                  </div>
                 </div>
+              ))}
+            </div>
+          </section>
+        )}
 
-                <div className="mt-3 pt-3 border-t border-slate-800/80 text-xs text-slate-400 bg-slate-900/40 p-2.5 rounded-lg">
-                  <strong className="text-slate-300 block mb-0.5 font-medium">
-                    Why Legal Counsel Needs This:
-                  </strong>
-                  <p>{fact.rationale}</p>
-                </div>
+        {/* SECTION 3: INFORMATIONAL NEXT STEPS */}
+        {(activeTab === "all" || activeTab === "nextsteps") && (
+          <section
+            aria-label="Informational Next Steps Section"
+            className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl"
+          >
+            <div className="flex items-center gap-2 mb-6">
+              <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" aria-hidden="true" />
               </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* SECTION 3: INFORMATIONAL NEXT STEPS */}
-      {(activeTab === "all" || activeTab === "nextsteps") && (
-        <div className="bg-slate-900/90 border border-slate-800 rounded-2xl p-6 shadow-xl">
-          <div className="flex items-center gap-2 mb-6">
-            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <div>
+                <h3 className="text-base font-bold text-white">
+                  3. Informational Next Steps Before Consultation
+                </h3>
+                <p className="text-xs text-slate-300">
+                  Preparation checklist to maximize your advocate consultation efficiency
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className="text-base font-bold text-white">
-                3. Informational Next Steps Before Consultation
-              </h3>
-              <p className="text-xs text-slate-400">
-                Preparation checklist to maximize your advocate consultation efficiency
-              </p>
-            </div>
-          </div>
 
-          <div className="space-y-4">
-            {brief.nextSteps.map((step) => (
-              <div
-                key={step.stepNumber}
-                className="bg-slate-950/70 border border-slate-800 hover:border-emerald-500/40 rounded-xl p-4 flex flex-col sm:flex-row items-start gap-4 transition-all"
-              >
-                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-extrabold flex items-center justify-center shrink-0">
-                  {step.stepNumber}
-                </div>
-
-                <div className="flex-1">
-                  <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
-                    <span className="text-xs font-semibold text-slate-400">
-                      Category: {step.category}
-                    </span>
-                    <span
-                      className={`text-[10px] font-bold px-2 py-0.5 rounded border ${getUrgencyBadge(
-                        step.urgency
-                      )}`}
-                    >
-                      {step.urgency}
-                    </span>
+            <div className="space-y-4">
+              {brief.nextSteps.map((step) => (
+                <div
+                  key={step.stepNumber}
+                  className="bg-slate-950/80 border border-slate-800 rounded-xl p-4 flex flex-col sm:flex-row items-start gap-4"
+                >
+                  <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-300 font-extrabold flex items-center justify-center shrink-0">
+                    {step.stepNumber}
                   </div>
 
-                  <h4 className="text-sm font-bold text-slate-100 mb-1">
-                    {step.action}
-                  </h4>
+                  <div className="flex-1">
+                    <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                      <span className="text-xs font-bold text-slate-300">
+                        Category: {step.category}
+                      </span>
+                      <span
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded border ${getUrgencyBadge(
+                          step.urgency
+                        )}`}
+                      >
+                        {step.urgency}
+                      </span>
+                    </div>
 
-                  <p className="text-xs text-slate-300 leading-relaxed">
-                    <span className="text-slate-400 font-medium">Objective: </span>
-                    {step.rationale}
-                  </p>
+                    <h4 className="text-sm font-bold text-slate-100 mb-1">
+                      {step.action}
+                    </h4>
+
+                    <p className="text-xs text-slate-200 leading-relaxed font-normal">
+                      <span className="text-slate-300 font-bold">Objective: </span>
+                      {step.rationale}
+                    </p>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
 
       {/* PERSISTENT LEGAL DISCLAIMER CARD AT BOTTOM */}
       <DisclaimerBanner variant="card" />

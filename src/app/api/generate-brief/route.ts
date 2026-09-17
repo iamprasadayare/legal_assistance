@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { z } from "zod";
 
 export interface TimelineEvent {
   date: string;
@@ -33,8 +34,53 @@ export interface LegalBriefData {
   legalRiskFactors: string[];
 }
 
+// Zod Input Validation Schema for Security
+const RequestSchema = z.object({
+  narrative: z
+    .string()
+    .min(5, "Narrative must be at least 5 characters long.")
+    .max(10000, "Narrative text exceeds maximum safety limit of 10,000 characters."),
+  caseCategory: z.string().optional(),
+  jurisdiction: z.string().optional(),
+});
+
+// In-Memory Rate Limiter (Max 15 requests per 1 minute per IP)
+const rateLimitMap = new Map<string, { count: number; expiresAt: number }>();
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const record = rateLimitMap.get(ip);
+  if (!record || now > record.expiresAt) {
+    rateLimitMap.set(ip, { count: 1, expiresAt: now + 60 * 1000 });
+    return true;
+  }
+  if (record.count >= 15) {
+    return false;
+  }
+  record.count += 1;
+  return true;
+}
+
+// Sanitize user input to prevent XSS / Injection
+function sanitizeInput(input: string): string {
+  return input
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, "")
+    .replace(/<[^>]+>/g, "")
+    .trim();
+}
+
 export async function POST(req: NextRequest) {
   try {
+    const ip = req.headers.get("x-forwarded-for") || req.headers.get("x-real-ip") || "anonymous";
+
+    // 1. Rate Limiting Check for Security
+    if (!checkRateLimit(ip)) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. Too many requests. Please try again in 1 minute." },
+        { status: 429, headers: { "Retry-After": "60" } }
+      );
+    }
+
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       return NextResponse.json(
@@ -44,11 +90,22 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { narrative, caseCategory, jurisdiction } = body;
 
-    if (!narrative || typeof narrative !== "string" || narrative.trim().length === 0) {
+    // 2. Schema Validation using Zod
+    const validationResult = RequestSchema.safeParse(body);
+    if (!validationResult.success) {
       return NextResponse.json(
-        { error: "Narrative text is required to generate a legal brief." },
+        { error: validationResult.error.issues[0]?.message || "Invalid input payload." },
+        { status: 400 }
+      );
+    }
+
+    const { narrative, caseCategory, jurisdiction } = validationResult.data;
+    const cleanNarrative = sanitizeInput(narrative);
+
+    if (!cleanNarrative) {
+      return NextResponse.json(
+        { error: "Narrative contains invalid characters or html scripts." },
         { status: 400 }
       );
     }
@@ -105,7 +162,7 @@ Category Hint from User: ${caseCategory || "Auto-detect"}
 Jurisdiction Hint from User: ${jurisdiction || "General"}
 `;
 
-    const userPrompt = `Client Narrative:\n"""\n${narrative.trim()}\n"""`;
+    const userPrompt = `Client Narrative:\n"""\n${cleanNarrative}\n"""`;
 
     // Candidate model names to try in order
     const candidateModels = [
@@ -122,7 +179,6 @@ Jurisdiction Hint from User: ${jurisdiction || "General"}
 
     for (const modelName of candidateModels) {
       try {
-        // First try with JSON response mode
         try {
           const model = genAI.getGenerativeModel({
             model: modelName,
@@ -132,7 +188,6 @@ Jurisdiction Hint from User: ${jurisdiction || "General"}
           responseText = result.response.text();
           if (responseText) break;
         } catch {
-          // Fallback: try model without responseMimeType constraint
           const model = genAI.getGenerativeModel({ model: modelName });
           const result = await model.generateContent([systemPrompt, userPrompt]);
           responseText = result.response.text();
@@ -148,7 +203,6 @@ Jurisdiction Hint from User: ${jurisdiction || "General"}
       throw lastError || new Error("Failed to get response from any Gemini model.");
     }
 
-    // Clean JSON response if wrapped in markdown code blocks
     let cleanJson = responseText.trim();
     if (cleanJson.startsWith("```json")) {
       cleanJson = cleanJson.replace(/^```json\s*/, "").replace(/\s*```$/, "");
@@ -170,7 +224,18 @@ Jurisdiction Hint from User: ${jurisdiction || "General"}
       );
     }
 
-    return NextResponse.json({ success: true, brief: parsedData });
+    // 3. Return JSON Response with Security Headers
+    return NextResponse.json(
+      { success: true, brief: parsedData },
+      {
+        headers: {
+          "X-Content-Type-Options": "nosniff",
+          "X-Frame-Options": "DENY",
+          "X-XSS-Protection": "1; mode=block",
+          "Cache-Control": "no-store, max-age=0",
+        },
+      }
+    );
   } catch (err: any) {
     console.error("Error in generate-brief API:", err);
     return NextResponse.json(
