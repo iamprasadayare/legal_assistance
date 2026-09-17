@@ -1,7 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { memo } from "react";
 import { Sparkles, FileText, Trash2, ArrowRight, Loader2, BookOpen, Layers } from "lucide-react";
+import { SAMPLE_CASES } from "@/constants/sampleCases";
 
 interface NarrativeInputProps {
   narrative: string;
@@ -13,27 +14,6 @@ interface NarrativeInputProps {
   onSubmit: () => void;
   isLoading: boolean;
 }
-
-export const SAMPLE_CASES = [
-  {
-    id: "property",
-    title: "Real Estate & Builder Delay",
-    category: "Real Estate & Property",
-    text: `I purchased an apartment in 'Skyline Heights Phase 2' from Zenith Builders on March 10, 2021. The possession date committed in the registered agreement was September 2022. I paid 85% of the total cost (approx Rs 45 Lakhs) via bank transfers. Construction stalled in mid-2022. On Nov 5, 2022, they issued a demand notice asking for an additional Rs 6 Lakhs citing material price escalation, which was never mentioned in the registered agreement. I sent them formal email rejections. On Jan 12, 2023, the builder issued a unilateral booking cancellation letter. I want to file a complaint to enforce possession and claim delay compensation interest.`,
-  },
-  {
-    id: "contract",
-    title: "Breach of Software Contract",
-    category: "Breach of Contract",
-    text: `Our firm Apex Tech Solutions entered into a software development contract with Vantage Logistics on January 5, 2023, to build a customized fleet tracking platform for $50,000. Milestones 1 and 2 ($30,000 total) were completed and paid. We delivered Milestone 3 on June 18, 2023, and Milestone 4 on August 30, 2023. Client acknowledged full deployment in production via email on Sept 2, 2023. However, final invoice #1042 ($20,000) remains unpaid despite 5 written reminders. On Oct 20, 2023, their VP sent an email alleging software bugs that were never reported during UAT testing. We need legal steps to issue formal demand notice and recover dues.`,
-  },
-  {
-    id: "employment",
-    title: "Wrongful Employment Termination",
-    category: "Employment & Labor",
-    text: `I served as Senior Manager at Global Tech Services since July 2019 under a written employment agreement stipulating a 3-month notice period or salary in lieu of notice. On August 14, 2023, HR called me into a meeting and verbally terminated my employment with immediate effect citing corporate restructuring. They offered only 1 month basic salary as severance and refused to disburse my earned performance bonus of $12,000 for H1. My corporate portal access was severed 30 minutes later. I have written appraisal emails from my VP praising my performance dated June 2023.`,
-  },
-];
 
 export const CATEGORIES = [
   "Auto-detect Category",
@@ -47,7 +27,7 @@ export const CATEGORIES = [
   "Criminal Defense",
 ];
 
-export const NarrativeInput: React.FC<NarrativeInputProps> = ({
+export const NarrativeInput: React.FC<NarrativeInputProps> = memo(({
   narrative,
   setNarrative,
   caseCategory,
@@ -92,7 +72,7 @@ export const NarrativeInput: React.FC<NarrativeInputProps> = ({
             <button
               key={sc.id}
               type="button"
-              onClick={() => loadSample(sc.text, sc.category)}
+              onClick={() => loadSample(sc.narrative, sc.category)}
               aria-label={`Load sample narrative for ${sc.title}`}
               className="text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-amber-300 px-3 py-1.5 rounded-lg border border-slate-700 transition-all font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400"
             >
@@ -206,4 +186,6 @@ export const NarrativeInput: React.FC<NarrativeInputProps> = ({
       </div>
     </section>
   );
-};
+});
+
+NarrativeInput.displayName = "NarrativeInput";

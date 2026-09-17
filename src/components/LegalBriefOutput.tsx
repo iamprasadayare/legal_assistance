@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
-import { LegalBriefData } from "@/app/api/generate-brief/route";
+import React, { useState, useMemo, memo } from "react";
+import { LegalBriefData } from "@/types";
 import {
   Clock,
   HelpCircle,
@@ -14,6 +14,7 @@ import {
   UserCheck,
   Calendar,
   Layers,
+  Cpu,
 } from "lucide-react";
 import { DisclaimerBanner } from "./DisclaimerBanner";
 
@@ -21,7 +22,7 @@ interface LegalBriefOutputProps {
   brief: LegalBriefData;
 }
 
-export const LegalBriefOutput: React.FC<LegalBriefOutputProps> = ({ brief }) => {
+export const LegalBriefOutput: React.FC<LegalBriefOutputProps> = memo(({ brief }) => {
   const [activeTab, setActiveTab] = useState<
     "all" | "timeline" | "missing" | "nextsteps"
   >("all");
@@ -181,6 +182,20 @@ DISCLAIMER: This tool provides informational structuring only and does not const
         <p className="text-slate-200 text-sm leading-relaxed mb-4 font-normal">
           {brief.caseSummary}
         </p>
+
+        {/* Google AI Embeddings & Vector Telemetry Badge */}
+        {brief.embeddingData && (
+          <div className="bg-indigo-950/40 border border-indigo-500/30 rounded-xl p-3 mb-4 flex flex-wrap items-center justify-between gap-2 text-xs">
+            <div className="flex items-center gap-2 text-indigo-300 font-semibold">
+              <Cpu className="w-4 h-4 text-indigo-400" />
+              <span>Google Gemini Vector Embeddings ({brief.embeddingData.googleModelUsed})</span>
+            </div>
+            <div className="flex items-center gap-4 text-slate-300 text-[11px]">
+              <span>Dimensions: <strong className="text-amber-400">{brief.embeddingData.vectorDimensions}D</strong></span>
+              <span>Semantic Complexity: <strong className="text-amber-400">{brief.embeddingData.semanticComplexityScore}/100</strong></span>
+            </div>
+          </div>
+        )}
 
         {/* Risk Factors */}
         {brief.legalRiskFactors && brief.legalRiskFactors.length > 0 && (
@@ -457,4 +472,6 @@ DISCLAIMER: This tool provides informational structuring only and does not const
       <DisclaimerBanner variant="card" />
     </div>
   );
-};
+});
+
+LegalBriefOutput.displayName = "LegalBriefOutput";

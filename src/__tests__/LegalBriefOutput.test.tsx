@@ -2,7 +2,7 @@ import React from "react";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
 import { LegalBriefOutput } from "@/components/LegalBriefOutput";
-import { LegalBriefData } from "@/app/api/generate-brief/route";
+import { LegalBriefData } from "@/types";
 
 const mockBrief: LegalBriefData = {
   caseSummary: "Client purchased apartment; builder delayed possession and unilaterally cancelled.",

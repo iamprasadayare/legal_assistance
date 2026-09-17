@@ -35,7 +35,7 @@ describe("NarrativeInput Component", () => {
 
   it("calls setNarrative when clicking a sample case button", () => {
     render(<NarrativeInput {...defaultProps} />);
-    const sampleBtn = screen.getByRole("button", { name: /Real Estate & Builder Delay/i });
+    const sampleBtn = screen.getByRole("button", { name: /Real Estate Builder Delay/i });
     fireEvent.click(sampleBtn);
     expect(defaultProps.setNarrative).toHaveBeenCalled();
   });
